@@ -14,45 +14,12 @@ func SaveStruct(x interface{}) ([]datastore.Property, error) {
 		return ps, err
 	}
 
-	extra := []datastore.Property{}
-
-	for _, p := range ps {
-		if _, isTime := p.Value.(time.Time); isTime {
-			extra = append(extra, datastore.Property{
-				Name:     correspondingName(p.Name),
-				Value:    p.Value,
-				NoIndex:  p.NoIndex,
-				Multiple: p.Multiple,
-			})
-		}
-	}
-
-	// make sure we dont add duplicates
-	for _, p := range extra {
-		if !exist(ps, p) {
-			ps = append(ps, p)
-		}
-	}
-
-	return ps, nil
+	return denormalize(ps), nil
 }
 
 // LoadStruct deserializes every field ending with a dot as both with and without the dot suffix
 func LoadStruct(x interface{}, ps []datastore.Property) error {
-	extra := []datastore.Property{}
-
-	for _, p := range ps {
-		if strings.HasSuffix(p.Name, ".") {
-			extra = append(extra, datastore.Property{
-				Name:     p.Name[:len(p.Name)-1],
-				Value:    p.Value,
-				NoIndex:  p.NoIndex,
-				Multiple: p.Multiple,
-			})
-		}
-	}
-
-	return datastore.LoadStruct(x, append(ps, extra...))
+	return datastore.LoadStruct(x, denormalize(ps))
 }
 
 func exist(ps []datastore.Property, needle datastore.Property) bool {
@@ -64,10 +31,37 @@ func exist(ps []datastore.Property, needle datastore.Property) bool {
 	return false
 }
 
-func correspondingName(name string) string {
-	if strings.HasSuffix(name, ".") {
-		return name[:len(name)-1]
+func denormalizeName(p datastore.Property) (datastore.Property, bool) {
+	if _, isTime := p.Value.(time.Time); isTime {
+		if strings.HasSuffix(p.Name, ".Time") {
+			p.Name = p.Name[:len(p.Name)-len("Time")]
+			return p, true
+		}
+
+		if strings.HasSuffix(p.Name, ".") {
+			p.Name = p.Name + "Time"
+			return p, true
+		}
 	}
 
-	return name + "."
+	return datastore.Property{}, false
+}
+
+func denormalize(ps []datastore.Property) []datastore.Property {
+	extra := []datastore.Property{}
+
+	for _, p := range ps {
+		if prop, ok := denormalizeName(p); ok {
+			extra = append(extra, prop)
+		}
+	}
+
+	// make sure we dont add duplicates
+	for _, p := range extra {
+		if !exist(ps, p) {
+			ps = append(ps, p)
+		}
+	}
+
+	return ps
 }
