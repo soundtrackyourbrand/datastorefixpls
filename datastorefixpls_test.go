@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/appengine/datastore"
+	"google.golang.org/appengine/v2/datastore"
 )
 
 var now = time.Now()

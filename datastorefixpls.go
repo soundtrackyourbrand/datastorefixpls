@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/appengine/datastore"
+	"google.golang.org/appengine/v2/datastore"
 )
 
 // SaveStruct serializes every time.Time as both with and without dot suffix
